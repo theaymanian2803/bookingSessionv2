@@ -1,54 +1,62 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts'
+import { Resend } from 'https://esm.sh/resend@2.0.0'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 interface BookingEmailRequest {
-  clientName: string;
-  clientEmail: string;
-  projectType: string;
-  scheduledTime: string;
-  notes: string | null;
-  zoomLink?: string;
+  clientName: string
+  clientEmail: string
+  projectType: string
+  scheduledTime: string
+  notes: string | null
+  zoomLink?: string
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not configured");
+      throw new Error('RESEND_API_KEY is not configured')
     }
 
-    const resend = new Resend(RESEND_API_KEY);
-    const { clientName, clientEmail, projectType, scheduledTime, notes, zoomLink }: BookingEmailRequest = await req.json();
+    const resend = new Resend(RESEND_API_KEY)
+    const {
+      clientName,
+      clientEmail,
+      projectType,
+      scheduledTime,
+      notes,
+      zoomLink,
+    }: BookingEmailRequest = await req.json()
 
     // Admin emails to notify
-    const adminEmails = ["uncacademycode@gmail.com", "sberechou@gmail.com"];
+    const adminEmails = ['uncacademycode@gmail.com', 'sberechou@gmail.com']
 
     // Format the scheduled time
-    const scheduledDate = new Date(scheduledTime);
-    const formattedDate = scheduledDate.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const formattedTime = scheduledDate.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const scheduledDate = new Date(scheduledTime)
+    const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
-    // Send notification to admins
+    // 1. Send notification to admins
+    // ✅ CHANGED: Using your verified domain
     const adminEmailResponse = await resend.emails.send({
-      from: "UncAcademyCode <onboarding@resend.dev>",
+      from: 'UncAcademy <bookings@mdinadesigner.com>',
       to: adminEmails,
       subject: `New Booking: ${clientName} - ${projectType}`,
       html: `
@@ -78,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
             </tr>
             <tr>
               <td style="padding: 12px; border: 1px solid #e5e7eb; background: #f9fafb;"><strong>Notes</strong></td>
-              <td style="padding: 12px; border: 1px solid #e5e7eb;">${notes || "No additional notes"}</td>
+              <td style="padding: 12px; border: 1px solid #e5e7eb;">${notes || 'No additional notes'}</td>
             </tr>
           </table>
           <p style="margin-top: 20px; color: #6b7280;">
@@ -86,15 +94,16 @@ const handler = async (req: Request): Promise<Response> => {
           </p>
         </div>
       `,
-    });
+    })
 
-    console.log("Admin notification sent:", adminEmailResponse);
+    console.log('Admin notification sent:', adminEmailResponse)
 
-    // Send confirmation to client
+    // 2. Send confirmation to client
+    // ✅ CHANGED: Using your verified domain
     const clientEmailResponse = await resend.emails.send({
-      from: "UncAcademyCode <onboarding@resend.dev>",
+      from: 'UncAcademy <bookings@mdinadesigner.com>',
       to: [clientEmail],
-      subject: "Booking Confirmed - UncAcademyCode Consultation",
+      subject: 'Booking Confirmed - UncAcademyCode Consultation',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #4f46e5;">Booking Confirmed! 🎉</h1>
@@ -116,31 +125,31 @@ const handler = async (req: Request): Promise<Response> => {
           <p>Best regards,<br>The UncAcademyCode Team</p>
         </div>
       `,
-    });
+    })
 
-    console.log("Client confirmation sent:", clientEmailResponse);
+    console.log('Client confirmation sent:', clientEmailResponse)
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         adminEmail: adminEmailResponse,
-        clientEmail: clientEmailResponse 
+        clientEmail: clientEmailResponse,
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       }
-    );
+    )
   } catch (error: unknown) {
-    console.error("Error sending booking emails:", error);
+    console.error('Error sending booking emails:', error)
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       }
-    );
+    )
   }
-};
+}
 
-serve(handler);
+serve(handler)
